@@ -324,5 +324,19 @@ angular.module('nar')
     }
     return NexusURL;
 })
+
+.service("ResourceStatus", function($http, bbpOidcSession) {
+    var config = {
+        Authorization: "Bearer " + bbpOidcSession.token()
+    };
+    return {
+        get_status: function(resource_uris) {
+            return $http.post("https://kg.humanbrainproject.org/api/releases", resource_uris, config).then(function(response) {
+                console.log(response);
+                return response.data;
+            });
+        }
+    }
+})
 ;
 

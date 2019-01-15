@@ -25,7 +25,7 @@ angular.module('nar')
 
 
 .controller('DatasetController', function($location, $rootScope, KGResource, 
-                                          bbpOidcSession, $http, NexusURL) {
+                                          bbpOidcSession, $http, NexusURL, ResourceStatus, PathHandler) {
     var vm = this;
 
     var nexusBaseUrl = NexusURL.get();
@@ -98,6 +98,17 @@ angular.module('nar')
         }
     ).then(
         function(datasets) {
+            var dataset_ids = [];
+            for (let dataset of datasets) {
+                var dataset_path = PathHandler.extract_path_from_uri(dataset.id);
+                dataset_ids.push(dataset_path['id']);
+            };
+            console.log(dataset_ids);
+            ResourceStatus.get_status(dataset_ids).then(
+                function(status_list) {
+                    console.log(status_list);
+                }
+            );
             for (let dataset of datasets) {
                 if (dataset.data["https://schema.hbp.eu/minds/license"]) {
                     if (dataset.data["https://schema.hbp.eu/minds/license"]["@id"].startsWith("http")) {

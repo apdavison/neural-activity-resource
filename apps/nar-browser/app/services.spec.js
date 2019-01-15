@@ -412,3 +412,66 @@ describe('KGIndex service', function() {
         });
     });
 });
+
+
+describe('ResourceStatus service', function () {
+
+    var ResourceStatus, $httpBackend;
+
+    beforeEach(angular.mock.module('nar'));
+
+    // Provide mock dependencies
+    beforeEach(function () {
+        mockbbpOidcSession = {
+            token: function() {
+                return "footoken"
+            }
+        };
+        module(function ($provide) {
+            $provide.value('bbpOidcSession', mockbbpOidcSession);
+        });
+    });
+
+    beforeEach(inject(function(_ResourceStatus_, _$httpBackend_) {
+        ResourceStatus = _ResourceStatus_;
+        $httpBackend = _$httpBackend_;
+        //whitelist all templates
+        $httpBackend.whenGET(/templates.*/).respond(200, '');
+    }));
+
+    it('should exist', function() {
+        expect(ResourceStatus).toBeDefined();
+    });
+
+    describe('.get_status()', function() {
+        it('should exist', function() {
+            expect(ResourceStatus.get_status).toBeDefined();
+        });
+        
+        it("should return a list of statuses", inject(function () {
+
+            var r = [    
+                {
+                    "status": "NOT_RELEASED",
+                    "childrenStatus": "RELEASED",
+                    "id": "uri1"
+                },
+                {
+                    "status": "RELEASED",
+                    "childrenStatus": "RELEASED",
+                    "id": "uri2"
+                }
+            ];
+
+
+            $httpBackend.expectPOST('https://kg.humanbrainproject.org/api/releases').respond(r);
+
+            ResourceStatus.get_status(['uri1', 'uri2']).then(
+                function(statuses) {
+                    expect(statuses).toEqual(r);
+                }).catch(console.error);
+            $httpBackend.flush();
+        }));
+    });
+
+});
