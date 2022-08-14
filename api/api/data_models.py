@@ -61,6 +61,11 @@ modality_type_map = {
     # todo: complete this
 }
 
+class RecordingModality(str, Enum):
+    patchclamp = "nsg:PatchedCell"
+    sharpintra = "nsg:IntraCellularSharpElectrodeRecordedCell"
+    extracellular = "nsg:ImplantedBrainTissue"
+
 
 class Species(str, Enum):
     mouse = "Mus musculus"
@@ -138,6 +143,25 @@ License = Enum(
     "License",
     [(name.replace(" ", "_"), name) for name in fairgraph.commons.License.iri_map.keys()],
 )
+
+
+class Sex(str, Enum):
+    male = "male"
+    female = "female"
+    other = "other"
+    unknown = "unknown"
+
+
+class Laterality(str, Enum):
+    left = "left"
+    right = "right"
+
+
+class SlicingPlane(str, Enum):
+    sagittal = "Sagittal"
+    parasagittal = "Para-sagittal"
+    coronal = "Coronal"
+    horizontal = "Horizontal"
 
 
 class QuantitativeValue(BaseModel):
@@ -446,13 +470,32 @@ class Stimulation(BaseModel):
     pass
 
 
+class Subject(BaseModel):
+    name: str = None
+    sex: Sex = None
+    age: QuantitativeValue = None
+    species: Species = None
+    strain: str = None
+
+
+class SamplePreparation(BaseModel):
+    brain_location: List[str] = None  # Part of the brain that was sliced
+    hemisphere: Laterality = None  # Brain hemisphere that was sliced
+    slicing_plane: SlicingPlane = None  # Slicing plain of the brain
+    slicing_angle: QuantitativeValue = None  # Slicing angle of the brain
+    cutting_thickness: QuantitativeValue = None  # Slice thickness
+    solution: str = None  # Solution in which the brain was sliced (e.g. Ringer's solution)
+    #People	node identifier	Person who performed the slicing
+    #Start time	date/time	Date and time at which the brain slicing was begun
+    #End time	date/time	Date and time at which the brain
+
+
 class TissueSample(BaseModel):
     type: str  # todo: enum ("cell", "slice", "tissue", "brain region", "whole brain")
     location: List[BrainRegion] = None
-    species: Species = None
-    subject_name: str = None
-    # todo: subject sex, age, strain
+    subject: Subject
     # todo: sample preparation (brain slicing, etc.)
+    preparation: SamplePreparation = None
     cell_type: CellType = None
 
     @classmethod
@@ -471,24 +514,40 @@ class TissueSample(BaseModel):
                 logger.debug(f"patched_slice = {patched_slice}")
             else:
                 patched_slice = None
+
+            sample_preparation = None
             if patched_slice:
                 slice = patched_slice.slice.resolve(client, api="nexus")
                 logger.debug(slice)
                 logger.debug(slice.subject)
                 try:
-                    subject = slice.subject.resolve(client, api="nexus")
+                    kgsubject = slice.subject.resolve(client, api="nexus")
                 except Exception:
                     logger.error("Problem retrieving subject")
-                    species = None
-                    subject_name = None
+                    subject = Subject()
                 else:
-                    species = Species(subject.species.label)
-                    subject_name = subject.name
+                    subject = Subject(
+                        name=kgsubject.name,
+                        species=Species(kgsubject.species.label),
+                        strain=getattr(kgsubject.strain, "label", None),
+                        sex=getattr(kgsubject.sex, "label", None)
+                        #age=
+                    )
                     if not location:  # location set on cell takes priority over set on slice
                         location = [BrainRegion(item.label) for item in as_list(patched_slice.brain_location)]
+                brain_slicing = slice.brain_slicing_activity.resolve(client, api="nexus")
+                if brain_slicing:
+                    sample_preparation = SamplePreparation(
+                        brain_location=[obj.label for obj in as_list(brain_slicing.brain_location)],
+                        hemisphere=brain_slicing.hemisphere and getattr(Laterality, brain_slicing.hemisphere) or None,
+                        slicing_plane=brain_slicing.slicing_plane and getattr(SlicingPlane, brain_slicing.slicing_plane.lower().replace("-", "")) or None,
+                        slicing_angle=brain_slicing.slicing_angle and QuantitativeValue(value=brain_slicing.slicing_angle, units="degrees") or None,
+                        cutting_thickness=brain_slicing.cutting_thickness and QuantitativeValue(value=brain_slicing.cutting_thickness.value,
+                                                            units=brain_slicing.cutting_thickness.unit_text) or None,
+                        solution=brain_slicing.cutting_solution
+                    )
             else:
-                species = None
-                subject_name = "unknown"
+                subject = Subject()   # todo
             if entity.cell_type:
                 cell_type = CellType(entity.cell_type.label)
             else:
@@ -497,9 +556,9 @@ class TissueSample(BaseModel):
             return cls(
                 type="cell",
                 location=location or None,  # replace empty list with None
-                species=species,
-                subject_name=subject_name,
-                cell_type=cell_type
+                subject=subject,
+                cell_type=cell_type,
+                preparation=sample_preparation
             )
         else:
             return None  # todo

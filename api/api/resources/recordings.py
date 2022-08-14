@@ -16,7 +16,7 @@ from fairgraph.minds import Dataset
 
 from ..data_models import (
     PaginatedRecording, Recording, BrainRegion, modality_type_map,
-    PaginatedRecordingSummary, RecordingSummary
+    PaginatedRecordingSummary, RecordingSummary, RecordingModality
 )
 from ..auth import get_kg_client
 
@@ -33,7 +33,7 @@ kg_client = get_kg_client()
 async def query_recordings(
     request: Request,
     summary: bool = False,
-    modality: str = None,  # todo: make this an Enum
+    modality: str = None,  # RecordingModality = None
     multi_channel: bool = None,
     name: str = None,
     dataset: str = None,   # dataset identifier, not uuid or uri
