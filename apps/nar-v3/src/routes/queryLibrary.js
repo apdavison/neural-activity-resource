@@ -31,7 +31,7 @@ import {
   simpleProperty as S,
   linkProperty as L,
   reverseLinkProperty as R,
-} from "../queries";
+} from "ebrains-kg-query";
 
 const MULTIPLE = { expectSingle: false };
 

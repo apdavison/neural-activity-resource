@@ -19,7 +19,7 @@ import {
   simpleProperty as S,
   linkProperty as L,
   reverseLinkProperty as R,
-} from "../../queries";
+} from "ebrains-kg-query";
 import { getKGItem } from "../../datastore";
 
 const query = buildKGQuery("TissueSample", [
